@@ -29,5 +29,8 @@
     "allow-plugins": {
       "composer/installers": true
     }
+  },
+  "scripts": {
+    "build-zip": "zip -r faq-jsonld.zip . -x '*.git*' -x '*.gitignore' -x '*.github*' -x '*.codacy*'"
   }
 }
