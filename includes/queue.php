@@ -6,15 +6,7 @@ if (! defined('ABSPATH')) {
 
 /**
  * Background invalidation queue using transients + WP-Cron
- *
- * Queue design:
- * - A transient 'fqj_invalidate_queue' holds a JSON-serialized array of post IDs (FIFO).
- * - Producer: indexer code calls fqj_queue_add_posts( array_of_post_ids ).
- * - Worker: WP-Cron hook 'fqj_process_invalidation_queue' processes N IDs per run (batch_size from settings).
- * - Worker deletes transients 'fqj_faq_json_{post_id}' for each ID processed.
- * - Provides helper to force-process via WP-CLI or ad-hoc admin action.
- *
- * This approach avoids heavy DB writes and uses WP core features.
+ * Now includes logging: last run timestamp and an invalidation history log.
  */
 
 /**
@@ -32,7 +24,6 @@ add_filter('cron_schedules', 'fqj_add_cron_interval');
 
 /**
  * Enqueue posts to the invalidation queue.
- * Accepts array of integer post IDs.
  */
 function fqj_queue_add_posts($post_ids)
 {
@@ -57,7 +48,6 @@ function fqj_queue_add_posts($post_ids)
         }
     }
 
-    // append while avoiding duplicates (we keep uniqueness to avoid reprocessing same post many times)
     $queue_map = array_flip($queue);
     foreach ($post_ids as $pid) {
         if (! isset($queue_map[$pid])) {
@@ -65,7 +55,6 @@ function fqj_queue_add_posts($post_ids)
         }
     }
 
-    // store back as serialized with a reasonably long TTL (one day). The queue persists across restarts.
     set_transient($key, $queue, DAY_IN_SECONDS);
 
     return true;
@@ -88,14 +77,12 @@ function fqj_queue_pop_posts($limit = 100)
     }
 
     $pop = array_splice($queue, 0, intval($limit));
-    // write back remaining queue (or delete transient if empty)
     if (empty($queue)) {
         delete_transient($key);
     } else {
         set_transient($key, $queue, DAY_IN_SECONDS);
     }
 
-    // ensure integers
     return array_map('intval', $pop);
 }
 
@@ -118,22 +105,55 @@ function fqj_queue_length()
 }
 
 /**
+ * Log an invalidation worker run.
+ * Stores an entry into option 'fqj_invalidation_log' as array of entries:
+ * [ [ 'ts' => 12345, 'processed' => n, 'sample' => [ids] ], ... ]
+ * Keeps only last 200 entries (configurable later).
+ */
+function fqj_log_invalidation_run($processed_count, $sample_ids = [])
+{
+    $opt_name = 'fqj_invalidation_log';
+    $log = get_option($opt_name, []);
+    if (! is_array($log)) {
+        $log = [];
+    }
+
+    $entry = [
+        'ts' => time(),
+        'processed' => intval($processed_count),
+        'sample' => array_slice(array_map('intval', $sample_ids), 0, 20),
+    ];
+
+    array_unshift($log, $entry); // newest first
+
+    // cap length
+    $max = 200; // reasonable cap
+    if (count($log) > $max) {
+        $log = array_slice($log, 0, $max);
+    }
+
+    update_option($opt_name, $log);
+    update_option('fqj_last_queue_run', time());
+}
+
+/**
  * Cron worker: processes up to batch_size posts from the queue
  */
 function fqj_process_invalidation_queue_cron()
 {
-    // get settings
     $opts = get_option(FQJ_OPTION_KEY);
     $batch_size = isset($opts['batch_size']) ? intval($opts['batch_size']) : 500;
 
-    // pop posts
     $to_process = fqj_queue_pop_posts($batch_size);
     if (empty($to_process)) {
+        // still record last run time
+        update_option('fqj_last_queue_run', time());
+        fqj_log_invalidation_run(0, []);
+
         return;
     }
 
     foreach ($to_process as $pid) {
-        // safety: skip non-numeric
         $pid = intval($pid);
         if ($pid <= 0) {
             continue;
@@ -141,12 +161,13 @@ function fqj_process_invalidation_queue_cron()
         delete_transient('fqj_faq_json_'.$pid);
     }
 
-    // If queue still has items, leave cron scheduled (it is recurring). Worker will run next time.
+    // log and save last run
+    fqj_log_invalidation_run(count($to_process), array_slice($to_process, 0, 20));
 }
 add_action('fqj_process_invalidation_queue', 'fqj_process_invalidation_queue_cron');
 
 /**
- * Immediate queue processor (used by WP-CLI or admin actions)
+ * Immediate queue processor (used by WP-CLI, admin AJAX or ad-hoc)
  * Returns number processed.
  */
 function fqj_process_invalidation_queue_now($limit = null)
@@ -156,28 +177,28 @@ function fqj_process_invalidation_queue_now($limit = null)
     $limit = $limit ? intval($limit) : $batch_size;
 
     $processed = 0;
-    while (true) {
-        $pop = fqj_queue_pop_posts($limit);
-        if (empty($pop)) {
-            break;
-        }
+    $sample = [];
+
+    // Pop and process until we hit the limit once
+    $pop = fqj_queue_pop_posts($limit);
+    if (! empty($pop)) {
         foreach ($pop as $pid) {
             delete_transient('fqj_faq_json_'.intval($pid));
             $processed++;
+            if (count($sample) < 20) {
+                $sample[] = intval($pid);
+            }
         }
-        // break to avoid long-running loops if caller did not want to process entire queue
-        if ($limit <= 0) {
-            break;
-        }
-        // continue loop to process next batch if queue still has items
     }
+
+    // log run
+    fqj_log_invalidation_run($processed, $sample);
 
     return $processed;
 }
 
 /**
- * Admin notice helper (optional): show queue length on admin screens for admins.
- * Minimal and non-intrusive.
+ * Admin notice helper: show queue length on admin screens for admins.
  */
 function fqj_admin_queue_notice()
 {

@@ -29,6 +29,7 @@ require_once FQJ_PLUGIN_DIR.'includes/queue.php';
 require_once FQJ_PLUGIN_DIR.'includes/admin.php';
 require_once FQJ_PLUGIN_DIR.'includes/frontend.php';
 require_once FQJ_PLUGIN_DIR.'includes/wpcli.php';
+require_once FQJ_PLUGIN_DIR.'includes/health.php';
 
 /**
  * Register CPT
