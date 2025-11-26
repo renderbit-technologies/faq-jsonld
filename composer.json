@@ -3,6 +3,7 @@
   "description": "WordPress plugin to manage FAQ items as CPT and inject FAQ JSON-LD with advanced caching and queueing.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
+  "version": "2.1.0",
   "authors": [
     {
       "name": "Soham Banerjee",
