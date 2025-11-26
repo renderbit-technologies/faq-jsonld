@@ -4,3 +4,37 @@
 # Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
 .github/instructions/snyk_rules.instructions.md
+
+# === WordPress Plugin Specific ===
+# Ignore OS and editor files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Ignore WordPress core and uploads (if present)
+/wordpress/
+/wp-content/uploads/
+/wp-content/cache/
+
+# Ignore build artifacts and vendor
+node_modules/
+vendor/
+composer.lock
+package-lock.json
+yarn.lock
+
+# Ignore log and environment files
+*.log
+.env
+.env.*
+
+# Ignore backup and temp files
+*.bak
+*.tmp
+*.swp
+*.swo
+*~
+.idea/
+.sass-cache/
+.cache/
