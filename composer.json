@@ -33,6 +33,13 @@
     }
   },
   "scripts": {
-    "build-zip": "zip -r faq-jsonld.zip . -x '*.git*' -x '*.gitignore' -x '*.github*' -x '*.codacy*'"
+    "build-zip": "zip -r faq-jsonld.zip . -x '*.git*' -x '*.gitignore' -x '*.github*' -x '*.codacy*'",
+    "bump-major": "composer run-script _bump-major-helper && composer update",
+    "bump-minor": "composer run-script _bump-minor-helper && composer update",
+    "bump-patch": "composer run-script _bump-patch-helper && composer update",
+    "_bump-major-helper": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);$v=explode('.',$c['version']);$v[0]++;$v[1]=0;$v[2]=0;$c['version']=implode('.',$v);file_put_contents('composer.json',json_encode($c,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));\"",
+    "_bump-minor-helper": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);$v=explode('.',$c['version']);$v[1]++;$v[2]=0;$c['version']=implode('.',$v);file_put_contents('composer.json',json_encode($c,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));\"",
+    "_bump-patch-helper": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);$v=explode('.',$c['version']);$v[2]++;$c['version']=implode('.',$v);file_put_contents('composer.json',json_encode($c,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));\"",
+    "git-tag": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);echo 'v'.$c['version'];\" | xargs -I {} git tag {}"
   }
 }
