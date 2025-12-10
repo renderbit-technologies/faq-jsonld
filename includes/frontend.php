@@ -75,11 +75,12 @@ function fqj_maybe_print_faq_jsonld()
     $where_clauses = [];
     $params = [];
     foreach ($candidate_values as $c) {
-        // mapping_type = ? AND mapping_value LIKE ?
-        $where_clauses[] = '(mapping_type = %s AND mapping_value LIKE %s)';
+        // Use exact match for all types to prevent partial matches (e.g. post ID 1 matching 10, 11, etc.)
+        // Since we store scalar values directly (or serialized which resolves to string), = is safer.
+        // For 'url', if we wanted partial matches we'd need a different logic, but here we expect exact path match.
+        $where_clauses[] = '(mapping_type = %s AND mapping_value = %s)';
         $params[] = $c['type'];
-        // we match serialized values, so use LIKE %value% (safe because our simple values are stored raw or serialized)
-        $params[] = '%'.$wpdb->esc_like((string) $c['value']).'%';
+        $params[] = (string) $c['value'];
     }
 
     if (empty($where_clauses)) {

@@ -51,6 +51,33 @@ function fqj_assoc_rules_meta_box_cb($post)
 
     // Load stored JSON payload for this FAQ
     $data_json = get_post_meta($post->ID, 'fqj_assoc_data_json', true) ?: '{}';
+    $data = json_decode($data_json, true);
+
+    // Hydrate posts and terms with titles/names for Select2
+    if (isset($data['posts']) && is_array($data['posts']) && ! empty($data['posts'])) {
+        $hydrated_posts = [];
+        $posts_to_fetch = array_map('intval', $data['posts']);
+        $fetched = get_posts(['include' => $posts_to_fetch, 'post_type' => 'any', 'posts_per_page' => -1]);
+        foreach ($fetched as $p) {
+            $hydrated_posts[] = ['id' => $p->ID, 'text' => get_the_title($p).' – '.get_permalink($p)];
+        }
+        $data['posts'] = $hydrated_posts;
+    }
+
+    if (isset($data['terms']) && is_array($data['terms']) && ! empty($data['terms'])) {
+        $hydrated_terms = [];
+        $terms_to_fetch = array_map('intval', $data['terms']);
+        foreach ($terms_to_fetch as $tid) {
+            $term = get_term($tid);
+            if ($term && ! is_wp_error($term)) {
+                $hydrated_terms[] = ['id' => $term->term_id, 'text' => $term->name.' ('.$term->taxonomy.')'];
+            }
+        }
+        $data['terms'] = $hydrated_terms;
+    }
+
+    $data_json_hydrated = wp_json_encode($data);
+
     $assoc_type = get_post_meta($post->ID, 'fqj_assoc_type', true) ?: 'urls';
 
     $assoc_types = [
@@ -69,7 +96,7 @@ function fqj_assoc_rules_meta_box_cb($post)
     }
     echo '</select>';
 
-    echo '<input type="hidden" id="fqj_assoc_data" name="fqj_assoc_data" value="'.esc_attr($data_json).'">';
+    echo '<input type="hidden" id="fqj_assoc_data" name="fqj_assoc_data" value="'.esc_attr($data_json_hydrated).'">';
 
     echo '<div id="fqj_assoc_container" style="margin-top:12px;"></div>';
 
