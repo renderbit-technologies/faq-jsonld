@@ -1,5 +1,11 @@
 <?php
 
+namespace FQJ;
+
+use WP_CLI;
+
+// phpcs:disable PSR1.Files.SideEffects
+
 if (! defined('ABSPATH')) {
     exit;
 }
@@ -8,13 +14,14 @@ if (defined('WP_CLI') && WP_CLI) {
     /**
      * WP-CLI commands for FAQ plugin
      */
-    class FQJ_CLI
+    class FqjCli
     {
-        public function purge_transients($args, $assoc_args)
+        public function purgeTransients($args, $assoc_args)
         {
             global $wpdb;
             WP_CLI::log('Searching transients...');
-            $rows = $wpdb->get_col($wpdb->prepare("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", '%_transient_fqj_faq_json_%'));
+            $sql = "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s";
+            $rows = $wpdb->get_col($wpdb->prepare($sql, '%_transient_fqj_faq_json_%'));
             $count = 0;
             if ($rows) {
                 foreach ($rows as $opt) {
@@ -31,7 +38,7 @@ if (defined('WP_CLI') && WP_CLI) {
          * Process invalidation queue via CLI.
          * Usage: wp fqj process-queue --limit=1000
          */
-        public function process_queue($args, $assoc_args)
+        public function processQueue($args, $assoc_args)
         {
             $limit = isset($assoc_args['limit']) ? intval($assoc_args['limit']) : null;
             WP_CLI::log('Processing invalidate queue...');
@@ -42,12 +49,12 @@ if (defined('WP_CLI') && WP_CLI) {
         /**
          * Show queue length
          */
-        public function queue_info($args, $assoc_args)
+        public function queueInfo($args, $assoc_args)
         {
             $len = fqj_queue_length();
             WP_CLI::success("Queue length: {$len}");
         }
     }
 
-    WP_CLI::add_command('fqj', 'FQJ_CLI');
+    WP_CLI::add_command('fqj', 'FQJ\FqjCli');
 }

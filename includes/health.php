@@ -3,6 +3,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+// phpcs:disable PSR1.Files.SideEffects
+
 /**
  * Health & Diagnostics admin page for FAQ JSON-LD plugin.
  * Shows:
@@ -38,7 +40,13 @@ function fqj_health_admin_assets($hook)
         return;
     }
 
-    wp_enqueue_script('fqj-health-js', FQJ_PLUGIN_URL.'assets/js/fqj-health.js', ['jquery'], '1.0', true);
+    wp_enqueue_script(
+        'fqj-health-js',
+        FQJ_PLUGIN_URL . 'assets/js/fqj-health.js',
+        ['jquery'],
+        '1.0',
+        true
+    );
     wp_localize_script('fqj-health-js', 'fqjHealth', [
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('fqj_health_nonce'),
@@ -66,8 +74,19 @@ function fqj_render_health_page()
         <h1>FAQ JSON-LD — Health & Diagnostics</h1>
 
         <h2>Queue</h2>
-        <p>Pending invalidation items in queue: <strong id="fqj-queue-count"><?php echo intval($queue_len); ?></strong></p>
-        <p>Last queue run: <strong id="fqj-last-run"><?php echo $last_run_ts ? esc_html(date_i18n('Y-m-d H:i:s', $last_run_ts).' ('.human_time_diff($last_run_ts, time()).' ago)') : 'Never'; ?></strong></p>
+        <p>Pending invalidation items in queue:
+            <strong id="fqj-queue-count"><?php echo intval($queue_len); ?></strong>
+        </p>
+        <p>Last queue run: <strong id="fqj-last-run">
+        <?php
+        echo $last_run_ts
+            ? esc_html(
+                date_i18n('Y-m-d H:i:s', $last_run_ts) .
+                ' (' . human_time_diff($last_run_ts, time()) . ' ago)'
+            )
+            : 'Never';
+        ?>
+        </strong></p>
 
         <p>
             <button id="fqj-process-now" class="button button-primary">Process queue now</button>
@@ -97,20 +116,30 @@ function fqj_render_health_page()
                         $processed = isset($entry['processed']) ? intval($entry['processed']) : 0;
                         $sample = isset($entry['sample']) && is_array($entry['sample']) ? $entry['sample'] : [];
                         echo '<tr>';
-                        echo '<td>'.esc_html($ts ? date_i18n('Y-m-d H:i:s', $ts).' ('.human_time_diff($ts, time()).' ago)' : 'n/a').'</td>';
-                        echo '<td>'.esc_html($processed).'</td>';
-                        echo '<td>'.esc_html(implode(', ', $sample)).'</td>';
+                        echo '<td>' . esc_html(
+                            $ts
+                                ? date_i18n('Y-m-d H:i:s', $ts) . ' (' . human_time_diff($ts, time()) . ' ago)'
+                                : 'n/a'
+                        ) . '</td>';
+                        echo '<td>' . esc_html($processed) . '</td>';
+                        echo '<td>' . esc_html(implode(', ', $sample)) . '</td>';
                         echo '</tr>';
                     }
                 }
-    ?>
+                ?>
             </tbody>
         </table>
 
         <h2>Notes</h2>
         <ul>
-            <li>Queue is stored transiently; if you need persistent audit trail, consider enabling a custom queue table (we can add that).</li>
-            <li>If WP-Cron is disabled on your host, ensure real cron triggers <code>wp-cron.php</code> or use WP-CLI to process the queue manually.</li>
+            <li>
+                Queue is stored transiently; if you need persistent audit trail,
+                consider enabling a custom queue table (we can add that).
+            </li>
+            <li>
+                If WP-Cron is disabled on your host, ensure real cron triggers
+                <code>wp-cron.php</code> or use WP-CLI to process the queue manually.
+            </li>
         </ul>
     </div>
     <?php

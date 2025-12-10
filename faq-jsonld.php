@@ -3,32 +3,36 @@
 /**
  * Plugin Name: FAQ JSON-LD Manager (Enterprise, queue-enabled)
  * Plugin URI:  https://github.com/renderbit-technologies/faq-jsonld-wordpress-plugin
- * Description: Manage FAQ items as CPT and inject FAQ JSON-LD. Uses a custom mapping table (fast), per-post transient caching, background invalidation queue (WP-Cron), settings UI and WP-CLI tools.
+ * Description: Manage FAQ items as CPT and inject FAQ JSON-LD. Uses a custom mapping table (fast), per-post
+ *              transient caching, background invalidation queue (WP-Cron), settings UI and WP-CLI tools.
  * Version:     2.1.0
  * Author:      Renderbit Technologies
  * License:     GPLv2+
  *
  * NOTE: original source content (optional import reference): /mnt/data/FAQs section content.docx
  */
+
 if (! defined('ABSPATH')) {
     exit;
 }
 
+// phpcs:disable PSR1.Files.SideEffects
+
 define('FQJ_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FQJ_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('FQJ_DB_TABLE', $GLOBALS['wpdb']->prefix.'fqj_mappings');
+define('FQJ_DB_TABLE', $GLOBALS['wpdb']->prefix . 'fqj_mappings');
 define('FQJ_OPTION_KEY', 'fqj_settings');
 
 /**
  * Autoload includes
  */
-require_once FQJ_PLUGIN_DIR.'includes/settings.php';
-require_once FQJ_PLUGIN_DIR.'includes/indexer.php';
-require_once FQJ_PLUGIN_DIR.'includes/queue.php';
-require_once FQJ_PLUGIN_DIR.'includes/admin.php';
-require_once FQJ_PLUGIN_DIR.'includes/frontend.php';
-require_once FQJ_PLUGIN_DIR.'includes/wpcli.php';
-require_once FQJ_PLUGIN_DIR.'includes/health.php';
+require_once FQJ_PLUGIN_DIR . 'includes/settings.php';
+require_once FQJ_PLUGIN_DIR . 'includes/indexer.php';
+require_once FQJ_PLUGIN_DIR . 'includes/queue.php';
+require_once FQJ_PLUGIN_DIR . 'includes/admin.php';
+require_once FQJ_PLUGIN_DIR . 'includes/frontend.php';
+require_once FQJ_PLUGIN_DIR . 'includes/wpcli.php';
+require_once FQJ_PLUGIN_DIR . 'includes/health.php';
 
 /**
  * Register CPT

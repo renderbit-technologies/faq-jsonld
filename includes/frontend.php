@@ -4,6 +4,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+// phpcs:disable PSR1.Files.SideEffects
+
 /**
  * Build and print JSON-LD for current post (uses mapping table to fetch relevant FAQ IDs)
  */
@@ -23,13 +25,13 @@ function fqj_maybe_print_faq_jsonld()
     $cache_ttl = isset($opts['cache_ttl']) ? intval($opts['cache_ttl']) : 12 * HOUR_IN_SECONDS;
     $output_type = isset($opts['output_type']) ? $opts['output_type'] : 'faqsection';
 
-    $transient_key = 'fqj_faq_json_'.$current_id;
+    $transient_key = 'fqj_faq_json_' . $current_id;
     $cached = get_transient($transient_key);
     if ($cached !== false) {
         if ($cached === '__FQJ_EMPTY__') {
             echo "\n<!-- FAQ JSON-LD (cached, no output) -->\n";
         } elseif (trim($cached) !== '') {
-            echo "\n<!-- FAQ JSON-LD (cached) -->\n".$cached."\n";
+            echo "\n<!-- FAQ JSON-LD (cached) -->\n" . $cached . "\n";
         } else {
             // Should not happen, but for safety
             echo "\n<!-- FAQ JSON-LD (cached, unknown state) -->\n";
@@ -147,10 +149,11 @@ function fqj_maybe_print_faq_jsonld()
         'mainEntity' => $main_entities,
     ];
 
-    $script = '<script type="application/ld+json">'.wp_json_encode($json_ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT).'</script>';
+    $script = '<script type="application/ld+json">' .
+        wp_json_encode($json_ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . '</script>';
 
     echo "\n<!-- FAQ JSON-LD injected by FAQ JSON-LD Manager plugin (generated) -->\n";
-    echo $script."\n";
+    echo $script . "\n";
 
     set_transient($transient_key, $script, $cache_ttl);
 }

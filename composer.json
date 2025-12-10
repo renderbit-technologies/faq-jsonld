@@ -41,5 +41,8 @@
     "_bump-minor-helper": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);$v=explode('.',$c['version']);$v[1]++;$v[2]=0;$c['version']=implode('.',$v);file_put_contents('composer.json',json_encode($c,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));\"",
     "_bump-patch-helper": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);$v=explode('.',$c['version']);$v[2]++;$c['version']=implode('.',$v);file_put_contents('composer.json',json_encode($c,JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));\"",
     "git-tag": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);echo 'v'.$c['version'];\" | xargs -I {} git tag {}"
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "^4.0"
   }
 }

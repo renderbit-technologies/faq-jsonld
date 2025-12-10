@@ -4,6 +4,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+// phpcs:disable PSR1.Files.SideEffects
+
 /**
  * Create mapping table
  */
@@ -24,7 +26,7 @@ function fqj_create_table()
       INDEX idx_mapping_value (mapping_value(191))
     ) {$charset_collate};";
 
-    require_once ABSPATH.'wp-admin/includes/upgrade.php';
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta($sql);
 }
 

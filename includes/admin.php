@@ -4,6 +4,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+// phpcs:disable PSR1.Files.SideEffects
+
 /**
  * Enqueue admin assets for faq_item edit screen
  */
@@ -17,10 +19,27 @@ function fqj_admin_assets($hook)
         return;
     }
 
-    wp_enqueue_style('fqj-select2-css', 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css', [], '4.0.13');
-    wp_enqueue_script('fqj-select2-js', 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js', ['jquery'], '4.0.13', true);
+    wp_enqueue_style(
+        'fqj-select2-css',
+        'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css',
+        [],
+        '4.0.13'
+    );
+    wp_enqueue_script(
+        'fqj-select2-js',
+        'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js',
+        ['jquery'],
+        '4.0.13',
+        true
+    );
 
-    wp_enqueue_script('fqj-admin-js', FQJ_PLUGIN_URL.'assets/js/fqj-admin.js', ['jquery', 'fqj-select2-js'], '1.0', true);
+    wp_enqueue_script(
+        'fqj-admin-js',
+        FQJ_PLUGIN_URL . 'assets/js/fqj-admin.js',
+        ['jquery', 'fqj-select2-js'],
+        '1.0',
+        true
+    );
     wp_localize_script('fqj-admin-js', 'fqjAdmin', [
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('fqj_admin_nonce'),
@@ -59,7 +78,7 @@ function fqj_assoc_rules_meta_box_cb($post)
         $posts_to_fetch = array_map('intval', $data['posts']);
         $fetched = get_posts(['include' => $posts_to_fetch, 'post_type' => 'any', 'posts_per_page' => -1]);
         foreach ($fetched as $p) {
-            $hydrated_posts[] = ['id' => $p->ID, 'text' => get_the_title($p).' – '.get_permalink($p)];
+            $hydrated_posts[] = ['id' => $p->ID, 'text' => get_the_title($p) . ' – ' . get_permalink($p)];
         }
         $data['posts'] = $hydrated_posts;
     }
@@ -70,7 +89,10 @@ function fqj_assoc_rules_meta_box_cb($post)
         foreach ($terms_to_fetch as $tid) {
             $term = get_term($tid);
             if ($term && ! is_wp_error($term)) {
-                $hydrated_terms[] = ['id' => $term->term_id, 'text' => $term->name.' ('.$term->taxonomy.')'];
+                $hydrated_terms[] = [
+                    'id' => $term->term_id,
+                    'text' => $term->name . ' (' . $term->taxonomy . ')'
+                ];
             }
         }
         $data['terms'] = $hydrated_terms;
@@ -92,15 +114,17 @@ function fqj_assoc_rules_meta_box_cb($post)
     echo '<select id="fqj_assoc_type" name="fqj_assoc_type" style="width:100%;max-width:400px;">';
     foreach ($assoc_types as $k => $label) {
         $sel = selected($assoc_type, $k, false);
-        echo "<option value='".esc_attr($k)."' {$sel}>".esc_html($label).'</option>';
+        echo "<option value='" . esc_attr($k) . "' {$sel}>" . esc_html($label) . '</option>';
     }
     echo '</select>';
 
-    echo '<input type="hidden" id="fqj_assoc_data" name="fqj_assoc_data" value="'.esc_attr($data_json_hydrated).'">';
+    echo '<input type="hidden" id="fqj_assoc_data" name="fqj_assoc_data" value="' .
+        esc_attr($data_json_hydrated) . '">';
 
     echo '<div id="fqj_assoc_container" style="margin-top:12px;"></div>';
 
-    echo '<p class="description">Enter association details. Use the "By Posts" option to search and multi-select posts/pages. For large sites, prefer Post Types or Taxonomy Terms.</p>';
+    echo '<p class="description">Enter association details. Use the "By Posts" option to search and multi-select ' .
+        'posts/pages. For large sites, prefer Post Types or Taxonomy Terms.</p>';
 }
 
 /**
@@ -195,7 +219,7 @@ function fqj_ajax_search_posts()
     ];
     $posts = get_posts($args);
     foreach ($posts as $p) {
-        $results[] = ['id' => $p->ID, 'text' => get_the_title($p).' – '.get_permalink($p)];
+        $results[] = ['id' => $p->ID, 'text' => get_the_title($p) . ' – ' . get_permalink($p)];
     }
     wp_send_json($results);
 }
@@ -220,7 +244,7 @@ function fqj_ajax_search_terms()
             continue;
         }
         foreach ($terms as $t) {
-            $results[] = ['id' => $t->term_id, 'text' => $t->name.' ('.$tax.')'];
+            $results[] = ['id' => $t->term_id, 'text' => $t->name . ' (' . $tax . ')'];
         }
     }
     wp_send_json($results);

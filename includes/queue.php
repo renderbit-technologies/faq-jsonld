@@ -4,6 +4,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+// phpcs:disable PSR1.Files.SideEffects
+
 /**
  * Background invalidation queue using transients + WP-Cron
  * Now includes logging: last run timestamp and an invalidation history log.
@@ -158,7 +160,7 @@ function fqj_process_invalidation_queue_cron()
         if ($pid <= 0) {
             continue;
         }
-        delete_transient('fqj_faq_json_'.$pid);
+        delete_transient('fqj_faq_json_' . $pid);
     }
 
     // log and save last run
@@ -183,7 +185,7 @@ function fqj_process_invalidation_queue_now($limit = null)
     $pop = fqj_queue_pop_posts($limit);
     if (! empty($pop)) {
         foreach ($pop as $pid) {
-            delete_transient('fqj_faq_json_'.intval($pid));
+            delete_transient('fqj_faq_json_' . intval($pid));
             $processed++;
             if (count($sample) < 20) {
                 $sample[] = intval($pid);
@@ -207,7 +209,11 @@ function fqj_admin_queue_notice()
     }
     $len = fqj_queue_length();
     if ($len > 0) {
-        printf('<div class="notice notice-info"><p>FAQ JSON-LD queue: <strong>%d</strong> posts pending invalidation. The background worker (WP-Cron) will process them in batches.</p></div>', intval($len));
+        printf(
+            '<div class="notice notice-info"><p>FAQ JSON-LD queue: <strong>%d</strong> ' .
+            'posts pending invalidation. The background worker (WP-Cron) will process them in batches.</p></div>',
+            intval($len)
+        );
     }
 }
 add_action('admin_notices', 'fqj_admin_queue_notice');

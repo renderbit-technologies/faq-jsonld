@@ -3,6 +3,8 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
+// phpcs:disable PSR1.Files.SideEffects
+
 /**
  * Settings page: TTL, batch size, output_type
  */
@@ -31,10 +33,15 @@ function fqj_render_settings_page()
     }
 
     // Handle save
-    if (isset($_POST['fqj_settings_nonce']) && wp_verify_nonce($_POST['fqj_settings_nonce'], 'fqj_save_settings')) {
+    if (
+        isset($_POST['fqj_settings_nonce'])
+        && wp_verify_nonce($_POST['fqj_settings_nonce'], 'fqj_save_settings')
+    ) {
         $cache_ttl = intval($_POST['cache_ttl']);
         $batch_size = intval($_POST['batch_size']);
-        $output_type = in_array($_POST['output_type'], ['faqsection', 'faqpage']) ? $_POST['output_type'] : 'faqsection';
+        $output_type = in_array($_POST['output_type'], ['faqsection', 'faqpage'])
+            ? $_POST['output_type']
+            : 'faqsection';
 
         $options['cache_ttl'] = max(60, $cache_ttl);
         $options['batch_size'] = max(10, $batch_size);
@@ -56,22 +63,36 @@ function fqj_render_settings_page()
             <table class="form-table">
                 <tr>
                     <th scope="row"><label for="cache_ttl">Cache TTL (seconds)</label></th>
-                    <td><input name="cache_ttl" id="cache_ttl" type="number" value="<?php echo esc_attr($cache_ttl); ?>" class="regular-text" /> 
-                        <p class="description">Number of seconds to cache per-post JSON-LD. Default is 43200 (12 hours).</p></td>
+                    <td><input name="cache_ttl" id="cache_ttl" type="number"
+                        value="<?php echo esc_attr($cache_ttl); ?>" class="regular-text" />
+                        <p class="description">
+                        Number of seconds to cache per-post JSON-LD. Default is 43200 (12 hours).
+                        </p></td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="batch_size">Invalidation batch size</label></th>
-                    <td><input name="batch_size" id="batch_size" type="number" value="<?php echo esc_attr($batch_size); ?>" class="regular-text" />
-                        <p class="description">When invalidating many posts (e.g., post-type mapping), process posts in batches of this size to avoid timeouts.</p></td>
+                    <td><input name="batch_size" id="batch_size" type="number"
+                        value="<?php echo esc_attr($batch_size); ?>" class="regular-text" />
+                        <p class="description">
+                        When invalidating many posts (e.g., post-type mapping), process posts in batches
+                        of this size to avoid timeouts.
+                        </p></td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="output_type">Default output type</label></th>
                     <td>
                         <select name="output_type" id="output_type">
-                            <option value="faqsection" <?php selected($output_type, 'faqsection'); ?>>FAQSection (recommended)</option>
-                            <option value="faqpage" <?php selected($output_type, 'faqpage'); ?>>FAQPage</option>
+                            <option value="faqsection" <?php selected($output_type, 'faqsection'); ?>>
+                                FAQSection (recommended)
+                            </option>
+                            <option value="faqpage" <?php selected($output_type, 'faqpage'); ?>>
+                                FAQPage
+                            </option>
                         </select>
-                        <p class="description">Choose whether the plugin outputs <code>FAQSection</code> or <code>FAQPage</code> by default. Individual FAQs still control associations.</p>
+                        <p class="description">
+                        Choose whether the plugin outputs <code>FAQSection</code> or <code>FAQPage</code> by default.
+                        Individual FAQs still control associations.
+                        </p>
                     </td>
                 </tr>
             </table>
@@ -90,11 +111,16 @@ function fqj_render_settings_page()
         </p>
 
         <?php
-        if (isset($_POST['fqj_action']) && $_POST['fqj_action'] === 'purge_all' && isset($_POST['fqj_purge_all_nonce_field']) && wp_verify_nonce($_POST['fqj_purge_all_nonce_field'], 'fqj_purge_all_nonce')) {
+        if (
+            isset($_POST['fqj_action'])
+            && $_POST['fqj_action'] === 'purge_all'
+            && isset($_POST['fqj_purge_all_nonce_field'])
+            && wp_verify_nonce($_POST['fqj_purge_all_nonce_field'], 'fqj_purge_all_nonce')
+        ) {
             fqj_purge_all_faq_transients();
             echo '<div class="updated"><p>All FAQ transients purged.</p></div>';
         }
-    ?>
+        ?>
 
     </div>
     <?php
@@ -107,7 +133,8 @@ function fqj_purge_all_faq_transients()
 {
     global $wpdb;
     $like = '%fqj_faq_json_%';
-    $rows = $wpdb->get_col($wpdb->prepare("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", '%_transient_fqj_faq_json_%'));
+    $sql = "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s";
+    $rows = $wpdb->get_col($wpdb->prepare($sql, '%_transient_fqj_faq_json_%'));
     if ($rows) {
         foreach ($rows as $opt) {
             // option_name may be _transient_fqj_faq_json_{id} or _transient_timeout_fqj_faq_json_{id}
