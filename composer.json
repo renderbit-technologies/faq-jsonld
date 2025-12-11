@@ -29,7 +29,8 @@
   },
   "config": {
     "allow-plugins": {
-      "composer/installers": true
+      "composer/installers": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true
     }
   },
   "scripts": {
@@ -43,6 +44,6 @@
     "git-tag": "php -r \"$c=json_decode(file_get_contents('composer.json'),true);echo 'v'.$c['version'];\" | xargs -I {} git tag {}"
   },
   "require-dev": {
-    "squizlabs/php_codesniffer": "^4.0"
+    "wp-coding-standards/wpcs": "^3.3"
   }
 }

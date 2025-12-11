@@ -1,7 +1,12 @@
 <?php
+/**
+ * Queue management functions.
+ *
+ * @package FAQ_JSON_LD
+ */
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 // phpcs:disable PSR1.Files.SideEffects
@@ -13,97 +18,106 @@ if (! defined('ABSPATH')) {
 
 /**
  * Register a custom cron interval (5 minutes) if not present.
+ *
+ * @param array $schedules Current cron schedules.
+ * @return array Modified schedules.
  */
-function fqj_add_cron_interval($schedules)
-{
-    if (! isset($schedules['fqj_five_minutes'])) {
-        $schedules['fqj_five_minutes'] = ['interval' => 5 * MINUTE_IN_SECONDS, 'display' => 'Every 5 Minutes'];
-    }
+function fqj_add_cron_interval( $schedules ) {
+	if ( ! isset( $schedules['fqj_five_minutes'] ) ) {
+		// phpcs:ignore WordPress.WP.CronInterval.CronSchedulesInterval
+		$schedules['fqj_five_minutes'] = array(
+			'interval' => 5 * MINUTE_IN_SECONDS,
+			'display'  => 'Every 5 Minutes',
+		);
+	}
 
-    return $schedules;
+	return $schedules;
 }
-add_filter('cron_schedules', 'fqj_add_cron_interval');
+add_filter( 'cron_schedules', 'fqj_add_cron_interval' );
 
 /**
  * Enqueue posts to the invalidation queue.
+ *
+ * @param array $post_ids Array of post IDs.
+ * @return bool True on success.
  */
-function fqj_queue_add_posts($post_ids)
-{
-    if (empty($post_ids)) {
-        return false;
-    }
+function fqj_queue_add_posts( $post_ids ) {
+	if ( empty( $post_ids ) ) {
+		return false;
+	}
 
-    $post_ids = array_map('intval', $post_ids);
-    $post_ids = array_filter($post_ids);
+	$post_ids = array_map( 'intval', $post_ids );
+	$post_ids = array_filter( $post_ids );
 
-    if (empty($post_ids)) {
-        return false;
-    }
+	if ( empty( $post_ids ) ) {
+		return false;
+	}
 
-    $key = 'fqj_invalidate_queue';
-    $existing = get_transient($key);
-    $queue = [];
-    if ($existing !== false) {
-        $queue = maybe_unserialize($existing);
-        if (! is_array($queue)) {
-            $queue = [];
-        }
-    }
+	$key      = 'fqj_invalidate_queue';
+	$existing = get_transient( $key );
+	$queue    = array();
+	if ( false !== $existing ) {
+		$queue = maybe_unserialize( $existing );
+		if ( ! is_array( $queue ) ) {
+			$queue = array();
+		}
+	}
 
-    $queue_map = array_flip($queue);
-    foreach ($post_ids as $pid) {
-        if (! isset($queue_map[$pid])) {
-            $queue[] = $pid;
-        }
-    }
+	$queue_map = array_flip( $queue );
+	foreach ( $post_ids as $pid ) {
+		if ( ! isset( $queue_map[ $pid ] ) ) {
+			$queue[] = $pid;
+		}
+	}
 
-    set_transient($key, $queue, DAY_IN_SECONDS);
+	set_transient( $key, $queue, DAY_IN_SECONDS );
 
-    return true;
+	return true;
 }
 
 /**
  * Pop up to $limit posts from queue (returns array of post IDs popped). FIFO.
+ *
+ * @param int $limit Max items to pop.
+ * @return array
  */
-function fqj_queue_pop_posts($limit = 100)
-{
-    $key = 'fqj_invalidate_queue';
-    $existing = get_transient($key);
-    if ($existing === false) {
-        return [];
-    }
+function fqj_queue_pop_posts( $limit = 100 ) {
+	$key      = 'fqj_invalidate_queue';
+	$existing = get_transient( $key );
+	if ( false === $existing ) {
+		return array();
+	}
 
-    $queue = maybe_unserialize($existing);
-    if (! is_array($queue) || empty($queue)) {
-        return [];
-    }
+	$queue = maybe_unserialize( $existing );
+	if ( ! is_array( $queue ) || empty( $queue ) ) {
+		return array();
+	}
 
-    $pop = array_splice($queue, 0, intval($limit));
-    if (empty($queue)) {
-        delete_transient($key);
-    } else {
-        set_transient($key, $queue, DAY_IN_SECONDS);
-    }
+	$pop = array_splice( $queue, 0, intval( $limit ) );
+	if ( empty( $queue ) ) {
+		delete_transient( $key );
+	} else {
+		set_transient( $key, $queue, DAY_IN_SECONDS );
+	}
 
-    return array_map('intval', $pop);
+	return array_map( 'intval', $pop );
 }
 
 /**
  * Get the approximate queue length
  */
-function fqj_queue_length()
-{
-    $key = 'fqj_invalidate_queue';
-    $existing = get_transient($key);
-    if ($existing === false) {
-        return 0;
-    }
-    $queue = maybe_unserialize($existing);
-    if (! is_array($queue)) {
-        return 0;
-    }
+function fqj_queue_length() {
+	$key      = 'fqj_invalidate_queue';
+	$existing = get_transient( $key );
+	if ( false === $existing ) {
+		return 0;
+	}
+	$queue = maybe_unserialize( $existing );
+	if ( ! is_array( $queue ) ) {
+		return 0;
+	}
 
-    return count($queue);
+	return count( $queue );
 }
 
 /**
@@ -111,109 +125,111 @@ function fqj_queue_length()
  * Stores an entry into option 'fqj_invalidation_log' as array of entries:
  * [ [ 'ts' => 12345, 'processed' => n, 'sample' => [ids] ], ... ]
  * Keeps only last 200 entries (configurable later).
+ *
+ * @param int   $processed_count Number processed.
+ * @param array $sample_ids Sample IDs.
  */
-function fqj_log_invalidation_run($processed_count, $sample_ids = [])
-{
-    $opt_name = 'fqj_invalidation_log';
-    $log = get_option($opt_name, []);
-    if (! is_array($log)) {
-        $log = [];
-    }
+function fqj_log_invalidation_run( $processed_count, $sample_ids = array() ) {
+	$opt_name = 'fqj_invalidation_log';
+	$log      = get_option( $opt_name, array() );
+	if ( ! is_array( $log ) ) {
+		$log = array();
+	}
 
-    $entry = [
-        'ts' => time(),
-        'processed' => intval($processed_count),
-        'sample' => array_slice(array_map('intval', $sample_ids), 0, 20),
-    ];
+	$entry = array(
+		'ts'        => time(),
+		'processed' => intval( $processed_count ),
+		'sample'    => array_slice( array_map( 'intval', $sample_ids ), 0, 20 ),
+	);
 
-    array_unshift($log, $entry); // newest first
+	array_unshift( $log, $entry ); // newest first.
 
-    // cap length
-    $max = 200; // reasonable cap
-    if (count($log) > $max) {
-        $log = array_slice($log, 0, $max);
-    }
+	// cap length.
+	$max = 200; // reasonable cap.
+	if ( count( $log ) > $max ) {
+		$log = array_slice( $log, 0, $max );
+	}
 
-    update_option($opt_name, $log);
-    update_option('fqj_last_queue_run', time());
+	update_option( $opt_name, $log );
+	update_option( 'fqj_last_queue_run', time() );
 }
 
 /**
  * Cron worker: processes up to batch_size posts from the queue
  */
-function fqj_process_invalidation_queue_cron()
-{
-    $opts = get_option(FQJ_OPTION_KEY);
-    $batch_size = isset($opts['batch_size']) ? intval($opts['batch_size']) : 500;
+function fqj_process_invalidation_queue_cron() {
+	$opts       = get_option( FQJ_OPTION_KEY );
+	$batch_size = isset( $opts['batch_size'] ) ? intval( $opts['batch_size'] ) : 500;
 
-    $to_process = fqj_queue_pop_posts($batch_size);
-    if (empty($to_process)) {
-        // still record last run time
-        update_option('fqj_last_queue_run', time());
-        fqj_log_invalidation_run(0, []);
+	$to_process = fqj_queue_pop_posts( $batch_size );
+	if ( empty( $to_process ) ) {
+		// still record last run time.
+		update_option( 'fqj_last_queue_run', time() );
+		fqj_log_invalidation_run( 0, array() );
 
-        return;
-    }
+		return;
+	}
 
-    foreach ($to_process as $pid) {
-        $pid = intval($pid);
-        if ($pid <= 0) {
-            continue;
-        }
-        delete_transient('fqj_faq_json_' . $pid);
-    }
+	foreach ( $to_process as $pid ) {
+		$pid = intval( $pid );
+		if ( $pid <= 0 ) {
+			continue;
+		}
+		delete_transient( 'fqj_faq_json_' . $pid );
+	}
 
-    // log and save last run
-    fqj_log_invalidation_run(count($to_process), array_slice($to_process, 0, 20));
+	// log and save last run.
+	fqj_log_invalidation_run( count( $to_process ), array_slice( $to_process, 0, 20 ) );
 }
-add_action('fqj_process_invalidation_queue', 'fqj_process_invalidation_queue_cron');
+add_action( 'fqj_process_invalidation_queue', 'fqj_process_invalidation_queue_cron' );
 
 /**
  * Immediate queue processor (used by WP-CLI, admin AJAX or ad-hoc)
  * Returns number processed.
+ *
+ * @param int $limit Max items.
+ * @return int
  */
-function fqj_process_invalidation_queue_now($limit = null)
-{
-    $opts = get_option(FQJ_OPTION_KEY);
-    $batch_size = isset($opts['batch_size']) ? intval($opts['batch_size']) : 500;
-    $limit = $limit ? intval($limit) : $batch_size;
+function fqj_process_invalidation_queue_now( $limit = null ) {
+	$opts       = get_option( FQJ_OPTION_KEY );
+	$batch_size = isset( $opts['batch_size'] ) ? intval( $opts['batch_size'] ) : 500;
+	$limit      = $limit ? intval( $limit ) : $batch_size;
 
-    $processed = 0;
-    $sample = [];
+	$processed = 0;
+	$sample    = array();
 
-    // Pop and process until we hit the limit once
-    $pop = fqj_queue_pop_posts($limit);
-    if (! empty($pop)) {
-        foreach ($pop as $pid) {
-            delete_transient('fqj_faq_json_' . intval($pid));
-            $processed++;
-            if (count($sample) < 20) {
-                $sample[] = intval($pid);
-            }
-        }
-    }
+	// Pop and process until we hit the limit once.
+	$pop = fqj_queue_pop_posts( $limit );
+	if ( ! empty( $pop ) ) {
+		foreach ( $pop as $pid ) {
+			delete_transient( 'fqj_faq_json_' . intval( $pid ) );
+			++$processed;
+			if ( count( $sample ) < 20 ) {
+				$sample[] = intval( $pid );
+			}
+		}
+	}
 
-    // log run
-    fqj_log_invalidation_run($processed, $sample);
+	// log run.
+	fqj_log_invalidation_run( $processed, $sample );
 
-    return $processed;
+	return $processed;
 }
 
 /**
  * Admin notice helper: show queue length on admin screens for admins.
  */
-function fqj_admin_queue_notice()
-{
-    if (! current_user_can('manage_options')) {
-        return;
-    }
-    $len = fqj_queue_length();
-    if ($len > 0) {
-        printf(
-            '<div class="notice notice-info"><p>FAQ JSON-LD queue: <strong>%d</strong> ' .
-            'posts pending invalidation. The background worker (WP-Cron) will process them in batches.</p></div>',
-            intval($len)
-        );
-    }
+function fqj_admin_queue_notice() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	$len = fqj_queue_length();
+	if ( $len > 0 ) {
+		printf(
+			'<div class="notice notice-info"><p>FAQ JSON-LD queue: <strong>%d</strong> ' .
+			'posts pending invalidation. The background worker (WP-Cron) will process them in batches.</p></div>',
+			intval( $len )
+		);
+	}
 }
-add_action('admin_notices', 'fqj_admin_queue_notice');
+add_action( 'admin_notices', 'fqj_admin_queue_notice' );

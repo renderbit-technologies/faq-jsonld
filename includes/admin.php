@@ -1,267 +1,310 @@
 <?php
+/**
+ * Admin functions.
+ *
+ * @package FAQ_JSON_LD
+ */
 
-if (! defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 // phpcs:disable PSR1.Files.SideEffects
 
 /**
  * Enqueue admin assets for faq_item edit screen
+ *
+ * @param string $hook The current admin page.
  */
-function fqj_admin_assets($hook)
-{
-    global $post;
-    if (! in_array($hook, ['post.php', 'post-new.php'])) {
-        return;
-    }
-    if (! $post || $post->post_type !== 'faq_item') {
-        return;
-    }
+function fqj_admin_assets( $hook ) {
+	global $post;
+	if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
+		return;
+	}
+	if ( ! $post || 'faq_item' !== $post->post_type ) {
+		return;
+	}
 
-    wp_enqueue_style(
-        'fqj-select2-css',
-        'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css',
-        [],
-        '4.0.13'
-    );
-    wp_enqueue_script(
-        'fqj-select2-js',
-        'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js',
-        ['jquery'],
-        '4.0.13',
-        true
-    );
+	wp_enqueue_style(
+		'fqj-select2-css',
+		'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css',
+		array(),
+		'4.0.13'
+	);
+	wp_enqueue_script(
+		'fqj-select2-js',
+		'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js',
+		array( 'jquery' ),
+		'4.0.13',
+		true
+	);
 
-    wp_enqueue_script(
-        'fqj-admin-js',
-        FQJ_PLUGIN_URL . 'assets/js/fqj-admin.js',
-        ['jquery', 'fqj-select2-js'],
-        '1.0',
-        true
-    );
-    wp_localize_script('fqj-admin-js', 'fqjAdmin', [
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('fqj_admin_nonce'),
-        'post_id' => get_the_ID(),
-    ]);
+	wp_enqueue_script(
+		'fqj-admin-js',
+		FQJ_PLUGIN_URL . 'assets/js/fqj-admin.js',
+		array( 'jquery', 'fqj-select2-js' ),
+		'1.0',
+		true
+	);
+	wp_localize_script(
+		'fqj-admin-js',
+		'fqjAdmin',
+		array(
+			'ajax_url' => admin_url( 'admin-ajax.php' ),
+			'nonce'    => wp_create_nonce( 'fqj_admin_nonce' ),
+			'post_id'  => get_the_ID(),
+		)
+	);
 }
-add_action('admin_enqueue_scripts', 'fqj_admin_assets');
+add_action( 'admin_enqueue_scripts', 'fqj_admin_assets' );
 
 /**
  * Add association meta box
  */
-function fqj_add_meta_boxes()
-{
-    add_meta_box(
-        'fqj_assoc_rules',
-        'Associations & Output',
-        'fqj_assoc_rules_meta_box_cb',
-        'faq_item',
-        'normal',
-        'default'
-    );
+function fqj_add_meta_boxes() {
+	add_meta_box(
+		'fqj_assoc_rules',
+		'Associations & Output',
+		'fqj_assoc_rules_meta_box_cb',
+		'faq_item',
+		'normal',
+		'default'
+	);
 }
-add_action('add_meta_boxes', 'fqj_add_meta_boxes');
+add_action( 'add_meta_boxes', 'fqj_add_meta_boxes' );
 
-function fqj_assoc_rules_meta_box_cb($post)
-{
-    wp_nonce_field('fqj_save_meta', 'fqj_meta_nonce');
+/**
+ * Render association meta box.
+ *
+ * @param WP_Post $post The post object.
+ */
+function fqj_assoc_rules_meta_box_cb( $post ) {
+	wp_nonce_field( 'fqj_save_meta', 'fqj_meta_nonce' );
 
-    // Load stored JSON payload for this FAQ
-    $data_json = get_post_meta($post->ID, 'fqj_assoc_data_json', true) ?: '{}';
-    $data = json_decode($data_json, true);
+	// Load stored JSON payload for this FAQ.
+	$data_json = get_post_meta( $post->ID, 'fqj_assoc_data_json', true );
+	$data_json = $data_json ? $data_json : '{}';
+	$data      = json_decode( $data_json, true );
 
-    // Hydrate posts and terms with titles/names for Select2
-    if (isset($data['posts']) && is_array($data['posts']) && ! empty($data['posts'])) {
-        $hydrated_posts = [];
-        $posts_to_fetch = array_map('intval', $data['posts']);
-        $fetched = get_posts(['include' => $posts_to_fetch, 'post_type' => 'any', 'posts_per_page' => -1]);
-        foreach ($fetched as $p) {
-            $hydrated_posts[] = ['id' => $p->ID, 'text' => get_the_title($p) . ' – ' . get_permalink($p)];
-        }
-        $data['posts'] = $hydrated_posts;
-    }
+	// Hydrate posts and terms with titles/names for Select2.
+	if ( isset( $data['posts'] ) && is_array( $data['posts'] ) && ! empty( $data['posts'] ) ) {
+		$hydrated_posts = array();
+		$posts_to_fetch = array_map( 'intval', $data['posts'] );
+		$fetched        = get_posts(
+			array(
+				'include'        => $posts_to_fetch,
+				'post_type'      => 'any',
+				'posts_per_page' => -1,
+			)
+		);
+		foreach ( $fetched as $p ) {
+			$hydrated_posts[] = array(
+				'id'   => $p->ID,
+				'text' => get_the_title( $p ) . ' – ' . get_permalink( $p ),
+			);
+		}
+		$data['posts'] = $hydrated_posts;
+	}
 
-    if (isset($data['terms']) && is_array($data['terms']) && ! empty($data['terms'])) {
-        $hydrated_terms = [];
-        $terms_to_fetch = array_map('intval', $data['terms']);
-        foreach ($terms_to_fetch as $tid) {
-            $term = get_term($tid);
-            if ($term && ! is_wp_error($term)) {
-                $hydrated_terms[] = [
-                    'id' => $term->term_id,
-                    'text' => $term->name . ' (' . $term->taxonomy . ')'
-                ];
-            }
-        }
-        $data['terms'] = $hydrated_terms;
-    }
+	if ( isset( $data['terms'] ) && is_array( $data['terms'] ) && ! empty( $data['terms'] ) ) {
+		$hydrated_terms = array();
+		$terms_to_fetch = array_map( 'intval', $data['terms'] );
+		foreach ( $terms_to_fetch as $tid ) {
+			$term = get_term( $tid );
+			if ( $term && ! is_wp_error( $term ) ) {
+				$hydrated_terms[] = array(
+					'id'   => $term->term_id,
+					'text' => $term->name . ' (' . $term->taxonomy . ')',
+				);
+			}
+		}
+		$data['terms'] = $hydrated_terms;
+	}
 
-    $data_json_hydrated = wp_json_encode($data);
+	$data_json_hydrated = wp_json_encode( $data );
 
-    $assoc_type = get_post_meta($post->ID, 'fqj_assoc_type', true) ?: 'urls';
+	$assoc_type = get_post_meta( $post->ID, 'fqj_assoc_type', true );
+	$assoc_type = $assoc_type ? $assoc_type : 'urls';
 
-    $assoc_types = [
-        'urls' => 'By URLs (one per line)',
-        'posts' => 'By Posts (search & multi-select)',
-        'post_types' => 'By Post Types (apply to all posts of selected types)',
-        'tax_terms' => 'By Taxonomy Terms (search & multi-select)',
-        'global' => 'Global (site-wide)',
-    ];
+	$assoc_types = array(
+		'urls'       => 'By URLs (one per line)',
+		'posts'      => 'By Posts (search & multi-select)',
+		'post_types' => 'By Post Types (apply to all posts of selected types)',
+		'tax_terms'  => 'By Taxonomy Terms (search & multi-select)',
+		'global'     => 'Global (site-wide)',
+	);
 
-    echo '<p><label for="fqj_assoc_type"><strong>Association Type</strong></label></p>';
-    echo '<select id="fqj_assoc_type" name="fqj_assoc_type" style="width:100%;max-width:400px;">';
-    foreach ($assoc_types as $k => $label) {
-        $sel = selected($assoc_type, $k, false);
-        echo "<option value='" . esc_attr($k) . "' {$sel}>" . esc_html($label) . '</option>';
-    }
-    echo '</select>';
+	echo '<p><label for="fqj_assoc_type"><strong>Association Type</strong></label></p>';
+	echo '<select id="fqj_assoc_type" name="fqj_assoc_type" style="width:100%;max-width:400px;">';
+	foreach ( $assoc_types as $k => $label ) {
+		$sel = selected( $assoc_type, $k, false );
+		echo "<option value='" . esc_attr( $k ) . "' " . esc_attr( $sel ) . '>' . esc_html( $label ) . '</option>';
+	}
+	echo '</select>';
 
-    echo '<input type="hidden" id="fqj_assoc_data" name="fqj_assoc_data" value="' .
-        esc_attr($data_json_hydrated) . '">';
+	echo '<input type="hidden" id="fqj_assoc_data" name="fqj_assoc_data" value="' .
+		esc_attr( $data_json_hydrated ) . '">';
 
-    echo '<div id="fqj_assoc_container" style="margin-top:12px;"></div>';
+	echo '<div id="fqj_assoc_container" style="margin-top:12px;"></div>';
 
-    echo '<p class="description">Enter association details. Use the "By Posts" option to search and multi-select ' .
-        'posts/pages. For large sites, prefer Post Types or Taxonomy Terms.</p>';
+	echo '<p class="description">Enter association details. Use the "By Posts" option to search and multi-select ' .
+		'posts/pages. For large sites, prefer Post Types or Taxonomy Terms.</p>';
 }
 
 /**
  * Save meta handler (similar to previous implementation but store payload JSON for indexing)
+ *
+ * @param int     $post_id The post ID.
+ * @param WP_Post $post The post object.
  */
-function fqj_save_meta_handler($post_id, $post)
-{
-    if (! isset($_POST['fqj_meta_nonce'])) {
-        return;
-    }
-    if (! wp_verify_nonce($_POST['fqj_meta_nonce'], 'fqj_save_meta')) {
-        return;
-    }
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-        return;
-    }
-    if ($post->post_type !== 'faq_item') {
-        return;
-    }
-    if (! current_user_can('edit_post', $post_id)) {
-        return;
-    }
+function fqj_save_meta_handler( $post_id, $post ) {
+	if ( ! isset( $_POST['fqj_meta_nonce'] ) ) {
+		return;
+	}
+	if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['fqj_meta_nonce'] ) ), 'fqj_save_meta' ) ) {
+		return;
+	}
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+	if ( 'faq_item' !== $post->post_type ) {
+		return;
+	}
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
 
-    $assoc_type = isset($_POST['fqj_assoc_type']) ? sanitize_text_field($_POST['fqj_assoc_type']) : 'urls';
-    $payload = [];
+	$assoc_type = isset( $_POST['fqj_assoc_type'] ) ? sanitize_text_field( wp_unslash( $_POST['fqj_assoc_type'] ) ) : 'urls';
+	$payload    = array();
 
-    if ($assoc_type === 'urls') {
-        $raw = isset($_POST['fqj_assoc_urls']) ? trim(wp_unslash($_POST['fqj_assoc_urls'])) : '';
-        $lines = preg_split("/\r\n|\n|\r/", $raw);
-        $urls = [];
-        foreach ($lines as $l) {
-            $l = trim($l);
-            if (empty($l)) {
-                continue;
-            }
-            $urls[] = esc_url_raw($l);
-        }
-        $payload['urls'] = array_values(array_unique($urls));
-    } elseif ($assoc_type === 'posts') {
-        $post_ids = [];
-        if (isset($_POST['fqj_assoc_posts_select']) && is_array($_POST['fqj_assoc_posts_select'])) {
-            foreach ($_POST['fqj_assoc_posts_select'] as $pid) {
-                $post_ids[] = intval($pid);
-            }
-        }
-        $payload['posts'] = array_values(array_unique($post_ids));
-    } elseif ($assoc_type === 'post_types') {
-        $ptypes = [];
-        if (isset($_POST['fqj_assoc_post_types']) && is_array($_POST['fqj_assoc_post_types'])) {
-            foreach ($_POST['fqj_assoc_post_types'] as $pt) {
-                $ptypes[] = sanitize_text_field($pt);
-            }
-        }
-        $payload['post_types'] = array_values(array_unique($ptypes));
-    } elseif ($assoc_type === 'tax_terms') {
-        $terms = [];
-        if (isset($_POST['fqj_assoc_terms_select']) && is_array($_POST['fqj_assoc_terms_select'])) {
-            foreach ($_POST['fqj_assoc_terms_select'] as $t) {
-                $terms[] = intval($t);
-            }
-        }
-        $payload['terms'] = array_values(array_unique($terms));
-    } elseif ($assoc_type === 'global') {
-        $payload['global'] = true;
-    }
+	if ( 'urls' === $assoc_type ) {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$raw   = isset( $_POST['fqj_assoc_urls'] ) ? trim( wp_unslash( $_POST['fqj_assoc_urls'] ) ) : '';
+		$lines = preg_split( "/\r\n|\n|\r/", $raw );
+		$urls  = array();
+		foreach ( $lines as $l ) {
+			$l = trim( $l );
+			if ( empty( $l ) ) {
+				continue;
+			}
+			$urls[] = esc_url_raw( $l );
+		}
+		$payload['urls'] = array_values( array_unique( $urls ) );
+	} elseif ( 'posts' === $assoc_type ) {
+		$post_ids = array();
+		if ( isset( $_POST['fqj_assoc_posts_select'] ) && is_array( $_POST['fqj_assoc_posts_select'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			foreach ( wp_unslash( $_POST['fqj_assoc_posts_select'] ) as $pid ) {
+				$post_ids[] = intval( $pid );
+			}
+		}
+		$payload['posts'] = array_values( array_unique( $post_ids ) );
+	} elseif ( 'post_types' === $assoc_type ) {
+		$ptypes = array();
+		if ( isset( $_POST['fqj_assoc_post_types'] ) && is_array( $_POST['fqj_assoc_post_types'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			foreach ( wp_unslash( $_POST['fqj_assoc_post_types'] ) as $pt ) {
+				$ptypes[] = sanitize_text_field( $pt );
+			}
+		}
+		$payload['post_types'] = array_values( array_unique( $ptypes ) );
+	} elseif ( 'tax_terms' === $assoc_type ) {
+		$terms = array();
+		if ( isset( $_POST['fqj_assoc_terms_select'] ) && is_array( $_POST['fqj_assoc_terms_select'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			foreach ( wp_unslash( $_POST['fqj_assoc_terms_select'] ) as $t ) {
+				$terms[] = intval( $t );
+			}
+		}
+		$payload['terms'] = array_values( array_unique( $terms ) );
+	} elseif ( 'global' === $assoc_type ) {
+		$payload['global'] = true;
+	}
 
-    update_post_meta($post_id, 'fqj_assoc_type', $assoc_type);
-    update_post_meta($post_id, 'fqj_assoc_data_json', wp_json_encode($payload));
+	update_post_meta( $post_id, 'fqj_assoc_type', $assoc_type );
+	update_post_meta( $post_id, 'fqj_assoc_data_json', wp_json_encode( $payload ) );
 
-    // Rebuild index (indexer will delete and reinsert mappings, then invalidate transients)
-    fqj_rebuild_index_for_faq($post_id);
+	// Rebuild index (indexer will delete and reinsert mappings, then invalidate transients).
+	fqj_rebuild_index_for_faq( $post_id );
 }
-add_action('save_post', 'fqj_save_meta_handler', 10, 2);
+add_action( 'save_post', 'fqj_save_meta_handler', 10, 2 );
 
 /**
  * AJAX: search posts for Select2
  */
-function fqj_ajax_search_posts()
-{
-    check_ajax_referer('fqj_admin_nonce', 'nonce');
-    $q = isset($_REQUEST['q']) ? sanitize_text_field(wp_unslash($_REQUEST['q'])) : '';
-    $results = [];
-    if (strlen($q) < 1) {
-        wp_send_json($results);
-    }
+function fqj_ajax_search_posts() {
+	check_ajax_referer( 'fqj_admin_nonce', 'nonce' );
+	$q       = isset( $_REQUEST['q'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['q'] ) ) : '';
+	$results = array();
+	if ( strlen( $q ) < 1 ) {
+		wp_send_json( $results );
+	}
 
-    $args = [
-        's' => $q,
-        'post_type' => ['post', 'page'],
-        'posts_per_page' => 20,
-        'post_status' => 'publish',
-    ];
-    $posts = get_posts($args);
-    foreach ($posts as $p) {
-        $results[] = ['id' => $p->ID, 'text' => get_the_title($p) . ' – ' . get_permalink($p)];
-    }
-    wp_send_json($results);
+	$args  = array(
+		's'              => $q,
+		'post_type'      => array( 'post', 'page' ),
+		'posts_per_page' => 20,
+		'post_status'    => 'publish',
+	);
+	$posts = get_posts( $args );
+	foreach ( $posts as $p ) {
+		$results[] = array(
+			'id'   => $p->ID,
+			'text' => get_the_title( $p ) . ' – ' . get_permalink( $p ),
+		);
+	}
+	wp_send_json( $results );
 }
-add_action('wp_ajax_fqj_search_posts', 'fqj_ajax_search_posts');
+add_action( 'wp_ajax_fqj_search_posts', 'fqj_ajax_search_posts' );
 
 /**
  * AJAX: search terms
  */
-function fqj_ajax_search_terms()
-{
-    check_ajax_referer('fqj_admin_nonce', 'nonce');
-    $q = isset($_REQUEST['q']) ? sanitize_text_field(wp_unslash($_REQUEST['q'])) : '';
-    $results = [];
-    if (strlen($q) < 1) {
-        wp_send_json($results);
-    }
+function fqj_ajax_search_terms() {
+	check_ajax_referer( 'fqj_admin_nonce', 'nonce' );
+	$q       = isset( $_REQUEST['q'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['q'] ) ) : '';
+	$results = array();
+	if ( strlen( $q ) < 1 ) {
+		wp_send_json( $results );
+	}
 
-    $taxonomies = get_taxonomies(['public' => true], 'names');
-    foreach ($taxonomies as $tax) {
-        $terms = get_terms(['taxonomy' => $tax, 'name__like' => $q, 'number' => 10, 'hide_empty' => false]);
-        if (is_wp_error($terms)) {
-            continue;
-        }
-        foreach ($terms as $t) {
-            $results[] = ['id' => $t->term_id, 'text' => $t->name . ' (' . $tax . ')'];
-        }
-    }
-    wp_send_json($results);
+	$taxonomies = get_taxonomies( array( 'public' => true ), 'names' );
+	foreach ( $taxonomies as $tax ) {
+		$terms = get_terms(
+			array(
+				'taxonomy'   => $tax,
+				'name__like' => $q,
+				'number'     => 10,
+				'hide_empty' => false,
+			)
+		);
+		if ( is_wp_error( $terms ) ) {
+			continue;
+		}
+		foreach ( $terms as $t ) {
+			$results[] = array(
+				'id'   => $t->term_id,
+				'text' => $t->name . ' (' . $tax . ')',
+			);
+		}
+	}
+	wp_send_json( $results );
 }
-add_action('wp_ajax_fqj_search_terms', 'fqj_ajax_search_terms');
+add_action( 'wp_ajax_fqj_search_terms', 'fqj_ajax_search_terms' );
 
 /**
  * AJAX: get public post types
  */
-function fqj_ajax_get_post_types()
-{
-    check_ajax_referer('fqj_admin_nonce', 'nonce');
-    $pts = get_post_types(['public' => true], 'objects');
-    $out = [];
-    foreach ($pts as $k => $obj) {
-        $out[] = ['name' => $k, 'label' => $obj->labels->singular_name];
-    }
-    wp_send_json($out);
+function fqj_ajax_get_post_types() {
+	check_ajax_referer( 'fqj_admin_nonce', 'nonce' );
+	$pts = get_post_types( array( 'public' => true ), 'objects' );
+	$out = array();
+	foreach ( $pts as $k => $obj ) {
+		$out[] = array(
+			'name'  => $k,
+			'label' => $obj->labels->singular_name,
+		);
+	}
+	wp_send_json( $out );
 }
-add_action('wp_ajax_fqj_get_post_types', 'fqj_ajax_get_post_types');
+add_action( 'wp_ajax_fqj_get_post_types', 'fqj_ajax_get_post_types' );
